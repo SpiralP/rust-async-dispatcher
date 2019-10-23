@@ -4,8 +4,8 @@ use futures::channel::oneshot::channel as oneshot_channel;
 type Task = Box<dyn FnOnce() + Send>;
 
 pub struct Dispatcher {
-  sender: Sender<Task>,
-  receiver: Receiver<Task>,
+  task_sender: Sender<Task>,
+  task_receiver: Receiver<Task>,
 }
 
 impl Default for Dispatcher {
@@ -16,43 +16,50 @@ impl Default for Dispatcher {
 
 impl Dispatcher {
   pub fn new() -> Self {
-    let (sender, receiver) = unbounded();
+    let (task_sender, task_receiver) = unbounded();
 
-    Self { sender, receiver }
+    Self {
+      task_sender,
+      task_receiver,
+    }
   }
 
+  /// Run all functions currently in the queue.
   pub fn process_tasks(&mut self) {
-    for task in self.receiver.try_iter() {
+    for task in self.task_receiver.try_iter() {
       task();
     }
   }
 
+  /// Get a [`DispatcherHandle`] to control this Dispatcher from another thread.
   pub fn get_handle(&self) -> DispatcherHandle {
     DispatcherHandle {
-      sender: self.sender.clone(),
+      task_sender: self.task_sender.clone(),
     }
   }
 }
 
+/// Created by calling [`Dispatcher::get_handle`].
 pub struct DispatcherHandle {
-  sender: Sender<Task>,
+  task_sender: Sender<Task>,
 }
 
 impl DispatcherHandle {
-  pub fn spawn<F: FnOnce() + Send + 'static>(&mut self, f: F) {
-    self.sender.send(Box::new(f)).unwrap();
+  fn spawn<F: FnOnce() + Send + 'static>(&mut self, f: F) {
+    self.task_sender.send(Box::new(f)).unwrap();
   }
 
-  pub async fn spawn_wait<T: Send + 'static, F: (FnOnce() -> T) + Send + 'static>(
+  /// Enqueue a function to be ran when [`Dispatcher::process_tasks`] is called.
+  ///
+  /// This returns a Future that resolves to the function's return value.
+  pub async fn dispatch<T: Send + 'static, F: (FnOnce() -> T) + Send + 'static>(
     &mut self,
     f: F,
   ) -> T {
     let (oneshot_sender, oneshot_receiver) = oneshot_channel();
 
     self.spawn(move || {
-      let ret = f();
-
-      let _ignore_error = oneshot_sender.send(ret);
+      let _ignore_error = oneshot_sender.send(f());
     });
 
     oneshot_receiver.await.unwrap()
@@ -62,29 +69,29 @@ impl DispatcherHandle {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use futures::executor::block_on;
+  use std::{thread, time::Duration};
 
   #[test]
   fn it_works() {
     let mut main_thread_dispatcher = Dispatcher::new();
     let mut handle = main_thread_dispatcher.get_handle();
 
-    std::thread::spawn(move || {
-      futures::executor::block_on(async move {
-        let result = handle
-          .spawn_wait(move || {
+    let t = thread::spawn(move || {
+      block_on(async move {
+        handle
+          .dispatch(move || {
             println!("MAIN THREAD HI");
 
             99
           })
-          .await;
-
-        println!("thread got {}", result);
-      });
+          .await
+      })
     });
 
-    for _ in 0..4 {
-      main_thread_dispatcher.process_tasks();
-      std::thread::sleep_ms(100);
-    }
+    thread::sleep(Duration::from_millis(1000));
+    main_thread_dispatcher.process_tasks();
+
+    assert!(t.join().unwrap() == 99);
   }
 }
