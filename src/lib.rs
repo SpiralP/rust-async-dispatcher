@@ -76,6 +76,13 @@ impl Dispatcher {
     }
 }
 
+impl Drop for Dispatcher {
+    fn drop(&mut self) {
+        // finish all futures
+        self.run();
+    }
+}
+
 /// Created by calling [`Dispatcher::get_handle`].
 pub struct DispatcherHandle {
     task_sender: Sender<Task>,
