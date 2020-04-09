@@ -20,18 +20,6 @@ jobs:
         with:
           command: build
 
-      - name: Build docs
-        uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --all-features
-
-      - name: Deploy docs
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/doc
-
       - name: Test
         uses: actions-rs/cargo@v1
         with:
@@ -54,6 +42,18 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
+
+      - name: Build docs
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --all-features
+
+      - name: Deploy docs
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/doc
 
       - name: Test
         uses: actions-rs/cargo@v1
