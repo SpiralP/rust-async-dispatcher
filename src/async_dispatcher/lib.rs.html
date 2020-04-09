@@ -190,6 +190,12 @@
 <span id="190">190</span>
 <span id="191">191</span>
 <span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">channel</span>::<span class="ident">oneshot</span>, <span class="ident">executor</span>::<span class="kw-2">*</span>, <span class="ident">future</span>::<span class="ident">BoxFuture</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">task</span>::<span class="ident">SpawnExt</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -235,6 +241,8 @@
     }
 
     <span class="doccomment">/// Run all tasks in the pool to completion.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This method will not enqueue new tasks until the next call!</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">spawn_queued</span>();
 
@@ -242,6 +250,8 @@
     }
 
     <span class="doccomment">/// Runs all tasks in the pool and returns if no more progress can be made on any task.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This method will not enqueue new tasks until the next call!</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_until_stalled</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">spawn_queued</span>();
 
@@ -249,6 +259,8 @@
     }
 
     <span class="doccomment">/// Runs all tasks and returns after completing one future or until no more progress can be made. Returns true if one future was completed, false otherwise.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This method will not enqueue new tasks until the next call!</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_run_one</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">spawn_queued</span>();
 
@@ -269,9 +281,9 @@
 }
 
 <span class="kw">impl</span> <span class="ident">DispatcherHandle</span> {
-    <span class="doccomment">/// Enqueue a function to be ran when [`Dispatcher::process_tasks`] is called.</span>
+    <span class="doccomment">/// Enqueue a future to be ran when [`Dispatcher::run`] is called.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// This function</span>
+    <span class="doccomment">/// If you want an output value from the future, use [`DispatcherHandle::dispatch`]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">spawn</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">future</span>: <span class="ident">F</span>)
     <span class="kw">where</span>
         <span class="ident">F</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span>,
@@ -279,9 +291,9 @@
         <span class="self">self</span>.<span class="ident">task_sender</span>.<span class="ident">send</span>(<span class="ident">future</span>.<span class="ident">boxed</span>()).<span class="ident">unwrap</span>();
     }
 
-    <span class="doccomment">/// Enqueue a function to be ran when [`Dispatcher::process_tasks`] is called.</span>
+    <span class="doccomment">/// Enqueue a future to be ran when [`Dispatcher::run`] is called.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// This returns a Future that resolves to the function&#39;s return value.</span>
+    <span class="doccomment">/// This returns a Future that resolves to the input future&#39;s output value.</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">dispatch</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">O</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">future</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>
     <span class="kw">where</span>
         <span class="ident">F</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="ident">O</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span>,
