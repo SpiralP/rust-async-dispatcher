@@ -42,6 +42,8 @@ impl Dispatcher {
     }
 
     /// Run all tasks in the pool to completion.
+    ///
+    /// This method will not enqueue new tasks until the next call!
     pub fn run(&mut self) {
         self.spawn_queued();
 
@@ -49,6 +51,8 @@ impl Dispatcher {
     }
 
     /// Runs all tasks in the pool and returns if no more progress can be made on any task.
+    ///
+    /// This method will not enqueue new tasks until the next call!
     pub fn run_until_stalled(&mut self) {
         self.spawn_queued();
 
@@ -56,6 +60,8 @@ impl Dispatcher {
     }
 
     /// Runs all tasks and returns after completing one future or until no more progress can be made. Returns true if one future was completed, false otherwise.
+    ///
+    /// This method will not enqueue new tasks until the next call!
     pub fn try_run_one(&mut self) {
         self.spawn_queued();
 
@@ -76,9 +82,9 @@ pub struct DispatcherHandle {
 }
 
 impl DispatcherHandle {
-    /// Enqueue a function to be ran when [`Dispatcher::process_tasks`] is called.
+    /// Enqueue a future to be ran when [`Dispatcher::run`] is called.
     ///
-    /// This function
+    /// If you want an output value from the future, use [`DispatcherHandle::dispatch`]
     pub fn spawn<F>(&mut self, future: F)
     where
         F: Future<Output = ()> + 'static + Send,
@@ -86,9 +92,9 @@ impl DispatcherHandle {
         self.task_sender.send(future.boxed()).unwrap();
     }
 
-    /// Enqueue a function to be ran when [`Dispatcher::process_tasks`] is called.
+    /// Enqueue a future to be ran when [`Dispatcher::run`] is called.
     ///
-    /// This returns a Future that resolves to the function's return value.
+    /// This returns a Future that resolves to the input future's output value.
     pub async fn dispatch<F, O>(&mut self, future: F) -> O
     where
         F: Future<Output = O> + 'static + Send,
