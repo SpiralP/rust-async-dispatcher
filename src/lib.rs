@@ -6,7 +6,7 @@ use std::{
 
 type Task = BoxFuture<'static, ()>;
 
-/// Used to call functions from another thread, getting their return values via `await`.
+/// Used to call futures from another thread, getting their output values via `await`.
 pub struct Dispatcher {
     task_sender: Sender<Task>,
     task_receiver: Receiver<Task>,
