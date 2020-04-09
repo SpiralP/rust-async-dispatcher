@@ -3,6 +3,7 @@ use futures::channel::oneshot::channel as oneshot_channel;
 
 type Task = Box<dyn FnOnce() + Send>;
 
+/// Used to call functions from another thread, getting their return values via `await`.
 pub struct Dispatcher {
   task_sender: Sender<Task>,
   task_receiver: Receiver<Task>,
@@ -52,10 +53,11 @@ impl DispatcherHandle {
   /// Enqueue a function to be ran when [`Dispatcher::process_tasks`] is called.
   ///
   /// This returns a Future that resolves to the function's return value.
-  pub async fn dispatch<T: Send + 'static, F: (FnOnce() -> T) + Send + 'static>(
-    &mut self,
-    f: F,
-  ) -> T {
+  pub async fn dispatch<T, F>(&mut self, f: F) -> T
+  where
+    T: Send + 'static,
+    F: (FnOnce() -> T) + Send + 'static,
+  {
     let (oneshot_sender, oneshot_receiver) = oneshot_channel();
 
     self.spawn(move || {
