@@ -84,6 +84,7 @@ impl Drop for Dispatcher {
 }
 
 /// Created by calling [`Dispatcher::get_handle`].
+#[derive(Clone)]
 pub struct DispatcherHandle {
     task_sender: Sender<Task>,
 }
