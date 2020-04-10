@@ -76,13 +76,6 @@ impl Dispatcher {
     }
 }
 
-impl Drop for Dispatcher {
-    fn drop(&mut self) {
-        // finish all futures
-        self.run();
-    }
-}
-
 /// Created by calling [`Dispatcher::get_handle`].
 #[derive(Clone)]
 pub struct DispatcherHandle {
