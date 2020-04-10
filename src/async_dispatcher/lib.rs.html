@@ -203,6 +203,7 @@
 <span id="203">203</span>
 <span id="204">204</span>
 <span id="205">205</span>
+<span id="206">206</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">channel</span>::<span class="ident">oneshot</span>, <span class="ident">executor</span>::<span class="kw-2">*</span>, <span class="ident">future</span>::<span class="ident">BoxFuture</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>, <span class="ident">task</span>::<span class="ident">SpawnExt</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -290,6 +291,7 @@
 }
 
 <span class="doccomment">/// Created by calling [`Dispatcher::get_handle`].</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DispatcherHandle</span> {
     <span class="ident">task_sender</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Task</span><span class="op">&gt;</span>,
 }
