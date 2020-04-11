@@ -157,27 +157,6 @@ impl LocalDispatcherHandle {
     {
         self.local_task_sender.send(future.boxed_local()).unwrap();
     }
-
-    /// Enqueue a future to be ran when [`Dispatcher::run`] is called.
-    ///
-    /// This returns a Future that resolves to the input future's output value.
-    pub async fn dispatch_local<F, O>(&mut self, future: F) -> O
-    where
-        F: Future<Output = O> + 'static,
-        O: 'static + Debug,
-    {
-        let (return_sender, return_receiver) = oneshot::channel();
-
-        self.spawn(
-            async {
-                let ret = future.await;
-                return_sender.send(ret).unwrap();
-            }
-            .boxed_local(),
-        );
-
-        return_receiver.await.unwrap()
-    }
 }
 
 #[cfg(test)]
@@ -228,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn local_works() {
+    fn it_works_local() {
         println!(
             "dispatcher running on thread {:?}",
             thread::current().name()
