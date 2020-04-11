@@ -273,27 +273,6 @@
 <span id="273">273</span>
 <span id="274">274</span>
 <span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
-<span id="287">287</span>
-<span id="288">288</span>
-<span id="289">289</span>
-<span id="290">290</span>
-<span id="291">291</span>
-<span id="292">292</span>
-<span id="293">293</span>
-<span id="294">294</span>
-<span id="295">295</span>
-<span id="296">296</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">futures</span>::{
     <span class="ident">channel</span>::<span class="ident">oneshot</span>,
@@ -454,27 +433,6 @@
     {
         <span class="self">self</span>.<span class="ident">local_task_sender</span>.<span class="ident">send</span>(<span class="ident">future</span>.<span class="ident">boxed_local</span>()).<span class="ident">unwrap</span>();
     }
-
-    <span class="doccomment">/// Enqueue a future to be ran when [`Dispatcher::run`] is called.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This returns a Future that resolves to the input future&#39;s output value.</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">dispatch_local</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">O</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">future</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>
-    <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="ident">O</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">O</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Debug</span>,
-    {
-        <span class="kw">let</span> (<span class="ident">return_sender</span>, <span class="ident">return_receiver</span>) <span class="op">=</span> <span class="ident">oneshot</span>::<span class="ident">channel</span>();
-
-        <span class="self">self</span>.<span class="ident">spawn</span>(
-            <span class="kw">async</span> {
-                <span class="kw">let</span> <span class="ident">ret</span> <span class="op">=</span> <span class="ident">future</span>.<span class="kw">await</span>;
-                <span class="ident">return_sender</span>.<span class="ident">send</span>(<span class="ident">ret</span>).<span class="ident">unwrap</span>();
-            }
-            .<span class="ident">boxed_local</span>(),
-        );
-
-        <span class="ident">return_receiver</span>.<span class="kw">await</span>.<span class="ident">unwrap</span>()
-    }
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -525,7 +483,7 @@
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">local_works</span>() {
+    <span class="kw">fn</span> <span class="ident">it_works_local</span>() {
         <span class="macro">println</span><span class="macro">!</span>(
             <span class="string">&quot;dispatcher running on thread {:?}&quot;</span>,
             <span class="ident">thread</span>::<span class="ident">current</span>().<span class="ident">name</span>()
