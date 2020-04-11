@@ -1,4 +1,10 @@
-use futures::{channel::oneshot, executor::*, future::BoxFuture, prelude::*, task::SpawnExt};
+use futures::{
+    channel::oneshot,
+    executor::*,
+    future::{BoxFuture, LocalBoxFuture},
+    prelude::*,
+    task::{LocalSpawnExt, SpawnExt},
+};
 use std::{
     fmt::Debug,
     sync::mpsc::{channel, Receiver, Sender},
@@ -6,10 +12,16 @@ use std::{
 
 type Task = BoxFuture<'static, ()>;
 
+type LocalTask = LocalBoxFuture<'static, ()>;
+
 /// Used to call futures from another thread, getting their output values via `await`.
 pub struct Dispatcher {
     task_sender: Sender<Task>,
     task_receiver: Receiver<Task>,
+
+    local_task_sender: Sender<LocalTask>,
+    local_task_receiver: Receiver<LocalTask>,
+
     future_pool: LocalPool,
     future_spawner: LocalSpawner,
 }
@@ -23,6 +35,7 @@ impl Default for Dispatcher {
 impl Dispatcher {
     pub fn new() -> Self {
         let (task_sender, task_receiver) = channel();
+        let (local_task_sender, local_task_receiver) = channel();
 
         let future_pool = LocalPool::new();
         let future_spawner = future_pool.spawner();
@@ -30,12 +43,18 @@ impl Dispatcher {
         Self {
             task_sender,
             task_receiver,
+            local_task_sender,
+            local_task_receiver,
             future_pool,
             future_spawner,
         }
     }
 
     fn spawn_queued(&mut self) {
+        for task in self.local_task_receiver.try_iter() {
+            self.future_spawner.spawn_local(task).unwrap();
+        }
+
         for task in self.task_receiver.try_iter() {
             self.future_spawner.spawn(task).unwrap();
         }
@@ -47,7 +66,7 @@ impl Dispatcher {
     pub fn run(&mut self) {
         self.spawn_queued();
 
-        self.future_pool.run();
+        self.future_pool.run()
     }
 
     /// Runs all tasks in the pool and returns if no more progress can be made on any task.
@@ -56,22 +75,29 @@ impl Dispatcher {
     pub fn run_until_stalled(&mut self) {
         self.spawn_queued();
 
-        self.future_pool.run_until_stalled();
+        self.future_pool.run_until_stalled()
     }
 
     /// Runs all tasks and returns after completing one future or until no more progress can be made. Returns true if one future was completed, false otherwise.
     ///
     /// This method will not enqueue new tasks until the next call!
-    pub fn try_run_one(&mut self) {
+    pub fn try_run_one(&mut self) -> bool {
         self.spawn_queued();
 
-        self.future_pool.try_run_one();
+        self.future_pool.try_run_one()
     }
 
     /// Get a [`DispatcherHandle`] to control this Dispatcher from another thread.
     pub fn get_handle(&self) -> DispatcherHandle {
         DispatcherHandle {
             task_sender: self.task_sender.clone(),
+        }
+    }
+
+    /// Get a [`LocalDispatcherHandle`] to control this Dispatcher from the same thread.
+    pub fn get_handle_local(&self) -> LocalDispatcherHandle {
+        LocalDispatcherHandle {
+            local_task_sender: self.local_task_sender.clone(),
         }
     }
 }
@@ -109,6 +135,45 @@ impl DispatcherHandle {
                 return_sender.send(ret).unwrap();
             }
             .boxed(),
+        );
+
+        return_receiver.await.unwrap()
+    }
+}
+
+/// Created by calling [`Dispatcher::get_handle_local`].
+#[derive(Clone)]
+pub struct LocalDispatcherHandle {
+    local_task_sender: Sender<LocalTask>,
+}
+
+impl LocalDispatcherHandle {
+    /// Enqueue a future to be ran when [`Dispatcher::run`] is called.
+    ///
+    /// If you want an output value from the future, use [`LocalDispatcherHandle::dispatch`]
+    pub fn spawn<F>(&mut self, future: F)
+    where
+        F: Future<Output = ()> + 'static,
+    {
+        self.local_task_sender.send(future.boxed_local()).unwrap();
+    }
+
+    /// Enqueue a future to be ran when [`Dispatcher::run`] is called.
+    ///
+    /// This returns a Future that resolves to the input future's output value.
+    pub async fn dispatch_local<F, O>(&mut self, future: F) -> O
+    where
+        F: Future<Output = O> + 'static,
+        O: 'static + Debug,
+    {
+        let (return_sender, return_receiver) = oneshot::channel();
+
+        self.spawn(
+            async {
+                let ret = future.await;
+                return_sender.send(ret).unwrap();
+            }
+            .boxed_local(),
         );
 
         return_receiver.await.unwrap()
@@ -160,6 +225,38 @@ mod tests {
         println!("dispatcher done running");
 
         assert!(t.join().unwrap() == 99);
+    }
+
+    #[test]
+    fn local_works() {
+        println!(
+            "dispatcher running on thread {:?}",
+            thread::current().name()
+        );
+        let mut main_thread_dispatcher = Dispatcher::new();
+
+        let mut local_handle = main_thread_dispatcher.get_handle_local();
+
+        let mut inner_local_handle = local_handle.clone();
+        println!("spawning");
+        local_handle.spawn(async move {
+            println!(
+                "spawned task running on same thread {:?}",
+                thread::current().name()
+            );
+
+            inner_local_handle.spawn(async {
+                println!("inner running");
+            });
+        });
+
+        println!("running dispatcher");
+        main_thread_dispatcher.run();
+        println!("dispatcher done running");
+
+        println!("running dispatcher again");
+        main_thread_dispatcher.run();
+        println!("dispatcher done running again");
     }
 
     #[test]
