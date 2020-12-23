@@ -246,7 +246,7 @@ mod tests {
         let mut handle = main_thread_dispatcher.get_handle();
 
         let tokio_thread = thread::spawn(move || {
-            let mut rt = tokio::runtime::Runtime::new().unwrap();
+            let rt = tokio::runtime::Runtime::new().unwrap();
 
             rt.block_on(async move {
                 println!("dispatching");
