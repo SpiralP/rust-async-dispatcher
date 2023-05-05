@@ -1,13 +1,17 @@
-use futures::{
-    channel::oneshot,
-    executor::*,
-    future::{BoxFuture, LocalBoxFuture},
-    prelude::*,
-    task::{LocalSpawnExt, SpawnExt},
-};
+#![warn(clippy::pedantic)]
+#![allow(clippy::missing_panics_doc)]
+
 use std::{
     fmt::Debug,
     sync::mpsc::{channel, Receiver, Sender},
+};
+
+use futures::{
+    channel::oneshot,
+    executor::{LocalPool, LocalSpawner},
+    future::{BoxFuture, LocalBoxFuture},
+    prelude::*,
+    task::{LocalSpawnExt, SpawnExt},
 };
 
 type Task = BoxFuture<'static, ()>;
@@ -33,6 +37,7 @@ impl Default for Dispatcher {
 }
 
 impl Dispatcher {
+    #[must_use]
     pub fn new() -> Self {
         let (task_sender, task_receiver) = channel();
         let (local_task_sender, local_task_receiver) = channel();
@@ -66,7 +71,7 @@ impl Dispatcher {
     pub fn run(&mut self) {
         self.spawn_queued();
 
-        self.future_pool.run()
+        self.future_pool.run();
     }
 
     /// Runs all tasks in the pool and returns if no more progress can be made on any task.
@@ -75,7 +80,7 @@ impl Dispatcher {
     pub fn run_until_stalled(&mut self) {
         self.spawn_queued();
 
-        self.future_pool.run_until_stalled()
+        self.future_pool.run_until_stalled();
     }
 
     /// Runs all tasks and returns after completing one future or until no more progress can be made. Returns true if one future was completed, false otherwise.
@@ -162,9 +167,11 @@ impl LocalDispatcherHandle {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
-    use futures::executor::block_on;
     use std::{thread, time::Duration};
+
+    use futures::executor::block_on;
+
+    use super::*;
 
     #[test]
     fn it_works() {
